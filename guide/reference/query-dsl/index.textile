@@ -7,6 +7,8 @@ sidebar: reference_query_dsl
 
 p. *elasticsearch* provides a full Query DSL based on JSON to define queries. In general, there are basic queries such as "term":term-query.html or "prefix":prefix-query.html. There are also compound queries like the "bool":bool-query.html query. Queries can also have filters associated with them such as the "filtered":filtered-query.html or "constant_score":constant-score-query.html queries, with specific filter queries. 
 
+p. To get a deeper understanding of the Query DSL there are two tutorials "(1)":/tutorials/2011/08/28/query-dsl-explained-slides.html and "(2)":/tutorials/2012/01/27/query-dsl-explained-2.html explaining this topic in detail.
+
 p. Think of the Query DSL as an AST of queries. Certain queries can contain other queries (like the "bool":bool-query.html query), other can contain filters (like the "constant_score":constant-score-query.html), and some can contain both a query and a filter (like the "filtered":filtered-query.html). Each of those can contain *any* query of the list of queries or *any* filter from the list of filters, resulting in the ability to build quite complex (and interesting) queries.
 
 p. Both queries and filters can be used in different APIs. For example, within a "search query":/guide/reference/api/search/query.html, or as a "facet filter":/guide/reference/api/search/facets/. This section explains the components (queries and filters) that can form the AST one can use.

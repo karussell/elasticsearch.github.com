@@ -1,6 +1,6 @@
 ---
 layout: tutorial
-title: Query DSL explained
+title: Query DSL explained (1)
 cat: tutorials
 author: Clinton Gormley
 nick: clintongormley

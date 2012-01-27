@@ -1,0 +1,147 @@
+---
+layout: tutorial
+title: Query DSL explained (2)
+cat: tutorials
+author: Peter Karich
+nick: timetabling
+tutorial_desc: Bird's Eye View on the Query DSL
+---
+
+I've copied the whole post into a "gist":https://gist.github.com/1639766 so that you can simply clone, copy and paste the important stuff and even could contribute easily.
+
+Several times per month there pop up questions regarding the query structure on the "ElasticSearch user group":http://groups.google.com/group/elasticsearch/topics.
+
+Although there are already "good docs":/guide/reference/api/search/ explaining this in depth probably the bird view of the Query DSL is necessary to understand what is written there. An overview of the Query DSL is already available "here":/tutorials/2011/08/28/query-dsl-explained.html. 
+And there were attempts to "define":http://groups.google.com/group/json-schema/browse_thread/thread/ae498ee818155d50 a "schema":https://gist.github.com/8887766ca0e7052814b0 but nevertheless I'll add my 2 cents here. 
+
+I assume you "set up":/guide/reference/setup/installation.html your ElasticSearch instance correctly and on the local machine filled with 3 example articles described "here":/guide/reference/api/search/facets/index.html.
+
+Now we can query ElasticSearch as it is done there. Keep in mind to use the keyword analyzer for tags!
+
+<pre class="prettyprint">
+curl -X POST 'http://localhost:9200/articles/_search?pretty=true' -d '
+{
+  "query" : { "query_string" : {"query" : "T*"} },
+  "facets" : {
+      "tags" : { "terms" : {"field" : "tags"} }
+  }
+}'
+</pre>
+
+But when you now look into the query DSL docs you'll only find the "query part":/guide/reference/query-dsl/query-string-query.html
+
+<pre class="prettyprint">
+{
+  "query_string" : {
+    "default_field" : "content",
+    "query" : "this AND that OR thus"
+  }
+}
+</pre>
+
+And this query part can be replaced by your favourite query. Be it a "filtered":/guide/reference/query-dsl/filtered-query.html, "term":/guide/reference/query-dsl/term-query.html, "bool":/guide/reference/query-dsl/bool-query.html or other query.
+
+So what is the main structure of a query? Roughly it is:
+
+<pre class="prettyprint">
+curl -X POST 'http://localhost:9200/articles/_search?pretty=true' -d '
+{
+  "from": 0,
+  "size": 10,
+  "query" : QUERY_JSON,
+  FILTER_JSON,
+  FACET_JSON,
+  SORT_JSON
+}'
+</pre>
+
+Keep in mind that the FILTER_JSON only applies to the query not to the facets. Read on how to do this. And now a short example how this nicely maps to the Java API:
+
+<pre class="prettyprint">
+SearchRequestBuilder srb = client.prepareSearch("your_index");
+srb.setQuery(QueryBuilders.queryString("title:test"));
+srb.addSort("tags", SortOrder.ASC);
+srb.addFacet(FacetBuilders.termsFacet("tags"));
+// etc -> use your IDE autocompletion function 
+</pre>
+
+If you install "my hack":https://github.com/mobz/elasticsearch-head/pull/3 for ElasticSearch Head you can formulate the above query separation directly in your browser ie. in javascript:
+
+<pre class="prettyprint">
+q = { match_all:{} };
+req = { query:q }
+</pre>
+
+A more detailed query structure is as follows – you could easily obtain all supported elements via Java API, from the "navigational elements from the official docs":/guide/reference/api/search/ or directly from "the source":https://github.com/elasticsearch/elasticsearch/blob/master/src/main/java/org/elasticsearch/search/builder/SearchSourceBuilder.java#L576 :
+
+<pre class="prettyprint">
+curl -X POST 'http://localhost:9200/articles/_search?pretty=true' -d '
+{
+  "query" : QUERY_JSON,
+  "filter" : FILTER_JSON,
+  "from": 0,
+  "size": 10,
+  "sort" : SORT_ARRAY,
+  "highlight" : HIGHLIGHT_JSON,
+  "fields" : ["tags", "title"],
+  "script_fields": SCRIPT_FIELDS_JSON,
+  "preference": "_local",
+  "facets" : FACET_JSON,
+  "search_type": "query_then_fetch",
+  "timeout": -1,
+  "version": true,
+  "explain": true,
+  "min_score": 0.5,
+  "partial_fields": PARTIAL_FIELDS_JSON,
+  "stats" : ["group1", "group2"]
+}'
+</pre>
+
+Let us dig into a simple query with some filters and facets:
+
+<pre class="prettyprint">
+curl -XGET 'http://localhost:9200/articles/_search?pretty=true' -d '
+{
+  "query": {
+     "filtered" : {
+        "query" : { "match_all" : {} },
+        "filter" : {"term" : { "tags" : "bar" }}
+     }
+  },
+  "facets" : {
+     "tags" : { "terms" : {"field" : "tags"} }
+  }
+}'
+</pre>
+
+You should get 2 out of the 3 articles and the filter directly applies on the facets as well. If you don't want that then put the filter part under the query:
+
+<pre class="prettyprint">
+curl -XGET 'http://localhost:9200/articles/_search?pretty=true' -d '
+{
+  "query" : { "match_all" : {} },
+  "filter" : { "term" : { "tags" : "bar" }},
+  "facets" : {
+     "tags" : { "terms" : {"field" : "tags"} }
+  }
+}'
+</pre>
+
+And how can I only filter on the facets? You'll need facet_filter:
+
+<pre class="prettyprint">
+curl -XGET 'http://localhost:9200/articles/_search?pretty=true' -d '
+{
+  "query" : { "match_all" : {} },
+  "facets" : {
+     "mytags" : {
+        "terms" : {"field" : "tags"},
+        "facet_filter" : {"term" : { "tags" : "bar"}}
+     }
+  }
+}'
+</pre>
+
+You'll get 3 documents with filtered facets.
+
+Hope this posts clarifies a bit and reduces your trouble. I'll update the post according to your comments/suggestions. "Let me know":http://twitter.com/timetabling if you want something explained which is Query-DSL specific for all the other questions there is the "user group":http://groups.google.com/group/elasticsearch/topics.
